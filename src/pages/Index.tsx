@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Icon from "@/components/ui/icon";
 
 const BATTLES = [
@@ -83,7 +84,7 @@ function VoteBar({ votes1, votes2 }: { votes1: number; votes2: number }) {
   );
 }
 
-function BattleCard({ battle, index }: { battle: (typeof BATTLES)[0]; index: number }) {
+function BattleCard({ battle, index, onProfile }: { battle: (typeof BATTLES)[0]; index: number; onProfile: (name: string) => void }) {
   const [voted, setVoted] = useState<null | 1 | 2>(null);
   const total = battle.player1.votes + battle.player2.votes;
   const isFinished = battle.status === "finished";
@@ -147,7 +148,12 @@ function BattleCard({ battle, index }: { battle: (typeof BATTLES)[0]; index: num
 
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-mono-pixel text-xs font-semibold truncate">{player.name}</p>
+                  <button
+                    onClick={() => onProfile(player.name.toLowerCase())}
+                    className="font-mono-pixel text-xs font-semibold truncate hover:underline text-left"
+                  >
+                    {player.name}
+                  </button>
                   <p className="font-mono-pixel text-[10px] text-muted-foreground">
                     {player.votes} голосов · {pct}%
                   </p>
@@ -205,6 +211,7 @@ function BattleCard({ battle, index }: { battle: (typeof BATTLES)[0]; index: num
 }
 
 export default function Index() {
+  const navigate = useNavigate();
   const [filter, setFilter] = useState<"all" | "active" | "finished">("all");
 
   const filtered = BATTLES.filter((b) => {
@@ -307,7 +314,7 @@ export default function Index() {
         {/* Battle grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filtered.map((battle, i) => (
-            <BattleCard key={battle.id} battle={battle} index={i} />
+            <BattleCard key={battle.id} battle={battle} index={i} onProfile={(name) => navigate(`/profile/${name}`)} />
           ))}
         </div>
 
