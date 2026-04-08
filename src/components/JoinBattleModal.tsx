@@ -1,5 +1,6 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import Icon from "@/components/ui/icon";
+import PixelCanvas from "@/components/PixelCanvas";
 
 interface Battle {
   id: number;
@@ -13,35 +14,19 @@ interface JoinBattleModalProps {
   onClose: () => void;
 }
 
-type Step = "upload" | "preview" | "success";
+type Step = "draw" | "submit" | "success";
 
 export default function JoinBattleModal({ battle, onClose }: JoinBattleModalProps) {
-  const [step, setStep] = useState<Step>("upload");
-  const [dragOver, setDragOver] = useState(false);
+  const [step, setStep] = useState<Step>("draw");
   const [preview, setPreview] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [nickname, setNickname] = useState("");
-  const fileRef = useRef<HTMLInputElement>(null);
 
   if (!battle) return null;
 
-  function handleFile(file: File) {
-    if (!file.type.startsWith("image/")) return;
-    const reader = new FileReader();
-    reader.onload = (e) => setPreview(e.target?.result as string);
-    reader.readAsDataURL(file);
-  }
-
-  function handleDrop(e: React.DragEvent) {
-    e.preventDefault();
-    setDragOver(false);
-    const file = e.dataTransfer.files[0];
-    if (file) handleFile(file);
-  }
-
-  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) handleFile(file);
+  function handleExport(dataUrl: string) {
+    setPreview(dataUrl);
+    setStep("submit");
   }
 
   function handleSubmit() {
@@ -52,141 +37,80 @@ export default function JoinBattleModal({ battle, onClose }: JoinBattleModalProp
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-foreground/60 backdrop-blur-sm"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-foreground/60 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
-      <div className="relative bg-white border border-border pixel-border w-full max-w-lg animate-fade-in-up">
+      <div className="relative bg-white border border-border pixel-border w-full max-w-xl animate-fade-in-up overflow-y-auto max-h-[95vh]">
+
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-white z-10">
           <div>
             <p className="font-mono-pixel text-[10px] uppercase tracking-widest text-muted-foreground">
-              Участие в баттле
+              {step === "draw" ? "Рисуй · 32×32" : step === "submit" ? "Отправка работы" : "Готово!"}
             </p>
             <h2 className="font-mono-pixel text-base font-bold mt-0.5">{battle.title}</h2>
           </div>
-          <button
-            onClick={onClose}
-            className="text-muted-foreground hover:text-foreground transition-colors p-1"
-          >
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors p-1">
             <Icon name="X" size={18} />
           </button>
         </div>
 
+        {/* Theme bar */}
         {step !== "success" && (
-          <div className="px-6 py-3 bg-gray-50 border-b border-border">
-            <p className="font-mono-pixel text-xs text-muted-foreground">
-              <span className="text-foreground font-medium">Тема:</span> {battle.theme}
+          <div className="px-6 py-2.5 bg-gray-50 border-b border-border flex items-center justify-between gap-4">
+            <p className="font-mono-pixel text-xs text-muted-foreground truncate">
+              <span className="text-foreground font-medium">Тема: </span>{battle.theme}
             </p>
-            <p className="font-mono-pixel text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
+            <p className="font-mono-pixel text-[10px] text-muted-foreground flex items-center gap-1 flex-shrink-0">
               <Icon name="Clock" size={10} />
-              Осталось: {battle.timeLeft}
+              {battle.timeLeft}
             </p>
           </div>
         )}
 
-        {/* Steps indicator */}
+        {/* Steps */}
         {step !== "success" && (
-          <div className="flex gap-px px-6 pt-4">
-            {(["upload", "preview"] as Step[]).map((s, i) => (
+          <div className="flex items-center gap-1 px-6 pt-4 pb-1">
+            {(["draw", "submit"] as Step[]).map((s, i) => (
               <div key={s} className="flex items-center gap-1">
-                <div
-                  className={`w-5 h-5 flex items-center justify-center font-mono-pixel text-[10px] font-bold border transition-colors
-                    ${step === s || (s === "upload" && step === "preview")
-                      ? "bg-foreground text-background border-foreground"
-                      : "bg-white text-muted-foreground border-border"
-                    }`}
+                <div className={`w-5 h-5 flex items-center justify-center font-mono-pixel text-[10px] font-bold border transition-colors
+                  ${step === s || (s === "draw" && step === "submit")
+                    ? "bg-foreground text-background border-foreground"
+                    : "bg-white text-muted-foreground border-border"}`}
                 >
                   {i + 1}
                 </div>
                 <span className={`font-mono-pixel text-[10px] uppercase tracking-wider ${step === s ? "text-foreground" : "text-muted-foreground"}`}>
-                  {s === "upload" ? "Загрузка" : "Отправка"}
+                  {s === "draw" ? "Рисуй" : "Отправка"}
                 </span>
-                {i === 0 && <div className="w-6 h-px bg-border mx-1" />}
+                {i === 0 && <div className="w-5 h-px bg-border mx-1" />}
               </div>
             ))}
           </div>
         )}
 
         {/* Content */}
-        <div className="px-6 py-5">
+        <div className="px-6 py-4">
 
-          {/* STEP 1: Upload */}
-          {step === "upload" && (
-            <div className="flex flex-col gap-4">
-              {/* Drop zone */}
-              <div
-                className={`border-2 border-dashed transition-colors cursor-pointer flex flex-col items-center justify-center gap-3 h-48
-                  ${dragOver ? "border-foreground bg-gray-50" : "border-border hover:border-foreground"}`}
-                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={handleDrop}
-                onClick={() => fileRef.current?.click()}
-              >
-                {preview ? (
-                  <div className="relative w-full h-full">
-                    <img
-                      src={preview}
-                      alt="preview"
-                      className="w-full h-full object-contain"
-                      style={{ imageRendering: "pixelated" }}
-                    />
-                    <div className="absolute inset-0 bg-foreground/0 hover:bg-foreground/10 transition-colors flex items-center justify-center">
-                      <span className="font-mono-pixel text-[10px] uppercase tracking-wider text-transparent hover:text-white transition-colors">
-                        Заменить
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="w-10 h-10 border border-border flex items-center justify-center text-muted-foreground">
-                      <Icon name="ImagePlus" size={20} />
-                    </div>
-                    <div className="text-center">
-                      <p className="font-mono-pixel text-xs font-medium">Перетащи файл или кликни</p>
-                      <p className="font-mono-pixel text-[10px] text-muted-foreground mt-1">PNG, JPG — рекомендуется пиксель-арт</p>
-                    </div>
-                  </>
-                )}
-              </div>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleInputChange}
-              />
-
-              <button
-                onClick={() => setStep("preview")}
-                disabled={!preview}
-                className={`w-full py-3 font-mono-pixel text-sm uppercase tracking-wider transition-all duration-150
-                  ${preview
-                    ? "bg-foreground text-background pixel-border hover:translate-y-[-1px] cursor-pointer"
-                    : "bg-gray-100 text-muted-foreground cursor-not-allowed"
-                  }`}
-              >
-                Далее →
-              </button>
-            </div>
+          {/* STEP 1: Draw */}
+          {step === "draw" && (
+            <PixelCanvas onExport={handleExport} />
           )}
 
-          {/* STEP 2: Preview + submit */}
-          {step === "preview" && (
+          {/* STEP 2: Submit */}
+          {step === "submit" && (
             <div className="flex flex-col gap-4">
-              <div className="flex gap-4">
-                <div className="w-24 h-24 flex-shrink-0 border border-border overflow-hidden">
-                  {preview && (
+              <div className="flex gap-4 items-start">
+                {preview && (
+                  <div className="w-20 h-20 flex-shrink-0 border border-border overflow-hidden">
                     <img
                       src={preview}
-                      alt="preview"
+                      alt="Твоя работа"
                       className="w-full h-full object-cover"
                       style={{ imageRendering: "pixelated" }}
                     />
-                  )}
-                </div>
+                  </div>
+                )}
                 <div className="flex-1 flex flex-col gap-3">
                   <div>
                     <label className="font-mono-pixel text-[10px] uppercase tracking-widest text-muted-foreground block mb-1">
@@ -217,20 +141,19 @@ export default function JoinBattleModal({ battle, onClose }: JoinBattleModalProp
 
               <div className="flex gap-2">
                 <button
-                  onClick={() => setStep("upload")}
+                  onClick={() => setStep("draw")}
                   className="flex-1 py-3 font-mono-pixel text-xs uppercase tracking-wider border border-border pixel-border-sm hover:bg-gray-50 transition-colors"
                 >
-                  ← Назад
+                  ← Переделать
                 </button>
                 <button
                   onClick={handleSubmit}
                   disabled={!title.trim() || !nickname.trim()}
-                  className={`flex-2 flex-grow py-3 font-mono-pixel text-sm uppercase tracking-wider transition-all duration-150
+                  className={`flex-[2] py-3 font-mono-pixel text-sm uppercase tracking-wider transition-all duration-150
                     ${title.trim() && nickname.trim()
-                      ? "bg-foreground text-background pixel-border hover:translate-y-[-1px] cursor-pointer"
-                      : "bg-gray-100 text-muted-foreground cursor-not-allowed"
-                    }`}
-                  style={title.trim() && nickname.trim() ? { backgroundColor: "var(--pixel-orange)", color: "white" } : {}}
+                      ? "text-white pixel-border-orange hover:translate-y-[-1px] cursor-pointer"
+                      : "bg-gray-100 text-muted-foreground cursor-not-allowed"}`}
+                  style={title.trim() && nickname.trim() ? { backgroundColor: "var(--pixel-orange)" } : {}}
                 >
                   Отправить работу
                 </button>
@@ -240,7 +163,7 @@ export default function JoinBattleModal({ battle, onClose }: JoinBattleModalProp
 
           {/* STEP 3: Success */}
           {step === "success" && (
-            <div className="flex flex-col items-center gap-5 py-6 text-center animate-fade-in-up">
+            <div className="flex flex-col items-center gap-5 py-8 text-center animate-fade-in-up">
               <div
                 className="w-16 h-16 flex items-center justify-center border-2 border-foreground"
                 style={{ backgroundColor: "var(--pixel-green)" }}
@@ -253,6 +176,11 @@ export default function JoinBattleModal({ battle, onClose }: JoinBattleModalProp
                   «{title}» отправлена в баттл<br />
                   <span className="font-medium text-foreground">«{battle.title}»</span>
                 </p>
+                {preview && (
+                  <div className="w-20 h-20 mx-auto mt-4 border border-border overflow-hidden">
+                    <img src={preview} alt="работа" className="w-full h-full" style={{ imageRendering: "pixelated" }} />
+                  </div>
+                )}
                 <p className="font-mono-pixel text-[10px] text-muted-foreground mt-3 uppercase tracking-wider">
                   Голосование начнётся после окончания приёма работ
                 </p>
