@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Icon from "@/components/ui/icon";
+import JoinBattleModal from "@/components/JoinBattleModal";
 
 const BATTLES = [
   {
@@ -84,7 +85,7 @@ function VoteBar({ votes1, votes2 }: { votes1: number; votes2: number }) {
   );
 }
 
-function BattleCard({ battle, index, onProfile }: { battle: (typeof BATTLES)[0]; index: number; onProfile: (name: string) => void }) {
+function BattleCard({ battle, index, onProfile, onJoin }: { battle: (typeof BATTLES)[0]; index: number; onProfile: (name: string) => void; onJoin: (battle: typeof BATTLES[0]) => void }) {
   const [voted, setVoted] = useState<null | 1 | 2>(null);
   const total = battle.player1.votes + battle.player2.votes;
   const isFinished = battle.status === "finished";
@@ -196,15 +197,25 @@ function BattleCard({ battle, index, onProfile }: { battle: (typeof BATTLES)[0];
       <VoteBar votes1={battle.player1.votes} votes2={battle.player2.votes} />
 
       {/* Footer */}
-      <div className="px-5 py-3 flex items-center justify-between">
+      <div className="px-5 py-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 text-muted-foreground">
           <Icon name="Users" size={12} />
           <span className="font-mono-pixel text-xs">{battle.participants} участников</span>
         </div>
-        <button className="font-mono-pixel text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
-          Открыть
-          <Icon name="ArrowRight" size={12} />
-        </button>
+        {!isFinished ? (
+          <button
+            onClick={() => onJoin(battle)}
+            className="font-mono-pixel text-[10px] uppercase tracking-wider px-3 py-1.5 text-white pixel-border-orange hover:translate-y-[-1px] transition-transform"
+            style={{ backgroundColor: "var(--pixel-orange)" }}
+          >
+            Участвовать
+          </button>
+        ) : (
+          <button className="font-mono-pixel text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+            Итоги
+            <Icon name="ArrowRight" size={12} />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -213,6 +224,7 @@ function BattleCard({ battle, index, onProfile }: { battle: (typeof BATTLES)[0];
 export default function Index() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<"all" | "active" | "finished">("all");
+  const [joinBattle, setJoinBattle] = useState<typeof BATTLES[0] | null>(null);
 
   const filtered = BATTLES.filter((b) => {
     if (filter === "all") return true;
@@ -261,7 +273,10 @@ export default function Index() {
             Новые темы каждую неделю.
           </p>
           <div className="flex gap-3 flex-wrap">
-            <button className="font-mono-pixel text-sm uppercase tracking-wider px-6 py-3 bg-foreground text-background pixel-border hover:translate-y-[-2px] transition-transform duration-150">
+            <button
+              onClick={() => setJoinBattle(BATTLES.find(b => b.status === "active") || BATTLES[0])}
+              className="font-mono-pixel text-sm uppercase tracking-wider px-6 py-3 bg-foreground text-background pixel-border hover:translate-y-[-2px] transition-transform duration-150"
+            >
               Участвовать в баттле
             </button>
             <button className="font-mono-pixel text-sm uppercase tracking-wider px-6 py-3 bg-white text-foreground border border-border pixel-border-sm hover:translate-y-[-2px] transition-transform duration-150">
@@ -314,7 +329,13 @@ export default function Index() {
         {/* Battle grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filtered.map((battle, i) => (
-            <BattleCard key={battle.id} battle={battle} index={i} onProfile={(name) => navigate(`/profile/${name}`)} />
+            <BattleCard
+              key={battle.id}
+              battle={battle}
+              index={i}
+              onProfile={(name) => navigate(`/profile/${name}`)}
+              onJoin={(b) => setJoinBattle(b)}
+            />
           ))}
         </div>
 
@@ -330,6 +351,7 @@ export default function Index() {
             </p>
           </div>
           <button
+            onClick={() => setJoinBattle(BATTLES.find(b => b.status === "active") || BATTLES[0])}
             className="whitespace-nowrap font-mono-pixel text-sm uppercase tracking-wider px-6 py-3 text-white pixel-border-orange hover:translate-y-[-2px] transition-transform duration-150"
             style={{ backgroundColor: "var(--pixel-orange)" }}
           >
@@ -337,6 +359,9 @@ export default function Index() {
           </button>
         </div>
       </section>
+
+      {/* Join Battle Modal */}
+      <JoinBattleModal battle={joinBattle} onClose={() => setJoinBattle(null)} />
 
       {/* Footer */}
       <footer className="border-t border-border bg-white">
